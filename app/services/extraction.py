@@ -18,6 +18,7 @@ from app.adapters.llm.client import LLMAdapterError, LLMClient, LLMExtractionReq
 from app.persistence.base import utc_now
 from app.persistence.database import session_scope
 from app.persistence.models import ExtractionAttempt, Lead, Message
+from app.services.scoring import LeadScoringService
 
 
 _EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)
@@ -189,6 +190,7 @@ class LeadExtractionService:
         max_input_chars: int,
         timeout_seconds: int,
         retry_max: int,
+        scoring_service: LeadScoringService | None = None,
         policy_version: str = EXTRACTION_POLICY_VERSION,
         now_factory: Callable[[], datetime] = utc_now,
     ) -> None:
@@ -198,12 +200,14 @@ class LeadExtractionService:
         self._max_input_chars = max_input_chars
         self._timeout_seconds = timeout_seconds
         self._retry_max = retry_max
+        self._scoring_service = scoring_service
         self._policy_version = policy_version
         self._now_factory = now_factory
 
     def process_normalized_email(self, normalized: NormalizedEmail) -> ExtractionOutcome:
         """Process a newly persisted M2 message using its transient body once."""
 
+        persisted_outcome: ExtractionOutcome | None = None
         try:
             with session_scope(self._session_factory) as session:
                 message = session.scalar(
@@ -462,7 +466,7 @@ class LeadExtractionService:
                 message.is_relevant = None if manual_review else True
                 if lead is not None and not manual_review:
                     lead.status = "New"
-                return ExtractionOutcome(
+                persisted_outcome = ExtractionOutcome(
                     status,
                     called=True,
                     attempt_number=context.attempt_number,
@@ -470,6 +474,19 @@ class LeadExtractionService:
                 )
         except SQLAlchemyError:
             return ExtractionOutcome("failed", called=True, error_category="database_write_failed")
+
+        if (
+            persisted_outcome is not None
+            and persisted_outcome.status == "succeeded"
+            and self._scoring_service is not None
+            and context.lead_id is not None
+        ):
+            self._scoring_service.score_lead(
+                lead_id=context.lead_id,
+                source_message_id=context.message_id,
+                facts=payload,
+            )
+        return persisted_outcome
 
     @staticmethod
     def _needs_manual_review(extraction: LeadExtraction) -> bool:
