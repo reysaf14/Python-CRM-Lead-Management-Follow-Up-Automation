@@ -12,4 +12,12 @@ postgres_data/
 .venv/
 venv/
 *.log
-
+**/credentials/
+**/service-account*.json
+**/client-secret*.json
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
