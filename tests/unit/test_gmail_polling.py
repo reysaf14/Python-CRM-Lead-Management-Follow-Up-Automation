@@ -7,6 +7,7 @@ from app.adapters.gmail.client import GmailAdapterError, GmailPage, MockGmailAda
 from app.persistence.base import Base
 from app.persistence.database import build_session_factory
 from app.persistence.models import Conversation, Lead, MailboxSyncState, Message
+from app.services.extraction import ExtractionOutcome
 from app.services.gmail_polling import GmailPollingService
 
 
@@ -17,6 +18,8 @@ def _message(
     labels: tuple[str, ...] = ("Sales Leads",),
     auto_reply: bool = False,
     sender: str = "prospect@example.invalid",
+    subject: str = "Synthetic sales inquiry",
+    body_text: str = "Untrusted synthetic email body.",
 ) -> NormalizedEmail:
     return NormalizedEmail(
         provider_message_id=message_id,
@@ -24,10 +27,10 @@ def _message(
         sender_email=sender,
         sender_name="Synthetic Prospect",
         received_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
-        subject="Synthetic sales inquiry",
+        subject=subject,
         label_names=labels,
         is_auto_reply=auto_reply,
-        body_text="Untrusted synthetic email body.",
+        body_text=body_text,
     )
 
 
@@ -124,6 +127,74 @@ def test_provider_failure_does_not_advance_checkpoint() -> None:
             assert sync_state.last_successful_cursor == "stored"
             assert sync_state.state == "error"
             assert sync_state.error_category == "provider_timeout"
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+class RecordingExtractionService:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def process_normalized_email(self, normalized: NormalizedEmail) -> ExtractionOutcome:
+        self.calls.append(normalized.provider_message_id)
+        return ExtractionOutcome("succeeded", called=True)
+
+
+def test_clearly_irrelevant_labeled_mail_is_excluded_before_extraction() -> None:
+    irrelevant = _message(
+        "message-irrelevant",
+        "thread-irrelevant",
+        subject="Thanks for the update",
+        body_text=(
+            "This email contains no new question, request, or sales information."
+        ),
+    )
+    relevant = _message(
+        "message-relevant",
+        "thread-relevant",
+        body_text="We need customer support automation and would like a quote.",
+    )
+    adapter = MockGmailAdapter(
+        [GmailPage(messages=(irrelevant, relevant), next_cursor=None)]
+    )
+    extraction = RecordingExtractionService()
+    engine, service = _service(adapter)
+    service = GmailPollingService(
+        adapter=adapter,
+        session_factory=build_session_factory(engine),
+        mailbox_key="synthetic-mailbox",
+        label_name="Sales Leads",
+        extraction_service=extraction,
+    )
+
+    try:
+        result = service.poll_once()
+
+        assert result.accepted_count == 1
+        assert result.excluded_count == 1
+        assert result.extraction_succeeded_count == 1
+        assert extraction.calls == ["message-relevant"]
+
+        with Session(engine) as session:
+            stored_irrelevant = session.scalar(
+                select(Message).where(
+                    Message.provider_message_id == "message-irrelevant"
+                )
+            )
+            assert stored_irrelevant is not None
+            assert stored_irrelevant.processing_state == "excluded"
+            assert stored_irrelevant.is_auto_reply is False
+            assert stored_irrelevant.is_relevant is False
+            assert session.scalar(
+                select(Message.id).where(Message.provider_message_id == "message-relevant")
+            ) is not None
+            assert session.scalar(select(Lead.id)) is not None
+            assert session.scalar(
+                select(Conversation.id).where(
+                    Conversation.provider_thread_id == "thread-irrelevant"
+                )
+            ) is None
     finally:
         Base.metadata.drop_all(engine)
         engine.dispose()
