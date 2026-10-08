@@ -1,0 +1,6 @@
+# Development/test-only dependencies for the isolated test image.
+coverage==7.16.2
+iniconfig==2.3.1
+pluggy==1.6.0
+pytest==8.4.2
+pytest-cov==6.3.0
