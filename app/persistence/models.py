@@ -134,6 +134,9 @@ class Message(TimestampMixin, Base):
     extraction_attempts: Mapped[list["ExtractionAttempt"]] = relationship(
         back_populates="message"
     )
+    score_evaluations: Mapped[list["ScoreEvaluation"]] = relationship(
+        back_populates="source_message"
+    )
 
     __table_args__ = (
         UniqueConstraint("provider_message_id", name="uq_messages_provider_message_id"),
@@ -202,6 +205,9 @@ class ScoreEvaluation(TimestampMixin, Base):
     rule_version_id: Mapped[int] = mapped_column(
         ForeignKey("scoring_rule_versions.id"), nullable=False
     )
+    source_message_id: Mapped[int | None] = mapped_column(
+        ForeignKey("messages.id"), nullable=True
+    )
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     priority: Mapped[str] = mapped_column(String(20), nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
@@ -210,8 +216,17 @@ class ScoreEvaluation(TimestampMixin, Base):
 
     lead: Mapped[Lead] = relationship(back_populates="score_evaluations")
     rule_version: Mapped[ScoringRuleVersion] = relationship(back_populates="evaluations")
+    source_message: Mapped[Message | None] = relationship(back_populates="score_evaluations")
 
-    __table_args__ = (Index("ix_score_evaluations_lead_evaluated_at", "lead_id", "evaluated_at"),)
+    __table_args__ = (
+        Index("ix_score_evaluations_lead_evaluated_at", "lead_id", "evaluated_at"),
+        UniqueConstraint(
+            "lead_id",
+            "rule_version_id",
+            "source_message_id",
+            name="uq_score_evaluations_source_identity",
+        ),
+    )
 
 
 class Activity(TimestampMixin, Base):
