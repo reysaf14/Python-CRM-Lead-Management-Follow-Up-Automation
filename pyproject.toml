@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75,<76"]
+requires = ["setuptools==79.0.1", "wheel==0.46.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -35,6 +35,7 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
   "postgres: tests requiring an isolated PostgreSQL target",
+  "e2e: synthetic end-to-end workflow tests",
 ]
 
 [tool.ruff]
