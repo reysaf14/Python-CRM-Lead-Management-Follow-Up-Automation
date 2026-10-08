@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
+import re
 from typing import Callable
 
 from sqlalchemy import select
@@ -15,6 +16,23 @@ from app.persistence.base import utc_now
 from app.persistence.database import session_scope
 from app.persistence.models import Contact, Conversation, Lead, MailboxSyncState, Message
 from app.services.extraction import ExtractionOutcome, LeadExtractionService
+
+
+_EXPLICIT_NON_MATERIAL_RE = re.compile(
+    r"\bno\s+(?:new\s+)?(?:question|request|sales\s+information)\b"
+    r"|\bno\s+(?:further|additional|more)\s+(?:questions?|requests?|information)\b",
+    re.IGNORECASE,
+)
+_ACKNOWLEDGEMENT_SUBJECT_RE = re.compile(
+    r"^\s*(?:re:\s*)?(?:thanks|thank\s+you)\b.*\b(?:update|message|email|reply)\b",
+    re.IGNORECASE,
+)
+_INQUIRY_SIGNAL_RE = re.compile(
+    r"\b(?:need|looking\s+for|interested|want|would\s+like|inquir(?:y|e|ies)|"
+    r"quote|pricing|budget|proposal|service|automation|project|schedule|book|"
+    r"demo|call|help)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -177,7 +195,18 @@ class GmailPollingService:
                     continue
 
                 if normalized.is_auto_reply:
-                    session.add(self._excluded_message(normalized))
+                    session.add(
+                        self._excluded_message(
+                            normalized,
+                            is_auto_reply=True,
+                        )
+                    )
+                    created_message_count += 1
+                    excluded_count += 1
+                    continue
+
+                if self._is_clearly_irrelevant(normalized):
+                    session.add(self._excluded_message(normalized, is_auto_reply=False))
                     created_message_count += 1
                     excluded_count += 1
                     continue
@@ -235,7 +264,33 @@ class GmailPollingService:
         )
 
     @staticmethod
-    def _excluded_message(normalized: NormalizedEmail) -> Message:
+    def _is_clearly_irrelevant(normalized: NormalizedEmail) -> bool:
+        """Exclude only explicit non-material acknowledgements before extraction.
+
+        This gate is intentionally conservative. A message with an inquiry signal
+        remains eligible for extraction; ambiguous content is not silently excluded.
+        """
+
+        subject = (normalized.subject or "").strip()
+        body = (normalized.body_text or "").strip()
+        combined = " ".join(part for part in (subject, body) if part)
+        if not combined:
+            return False
+
+        if _EXPLICIT_NON_MATERIAL_RE.search(combined):
+            return not _INQUIRY_SIGNAL_RE.search(body)
+
+        if _ACKNOWLEDGEMENT_SUBJECT_RE.search(subject):
+            return not _INQUIRY_SIGNAL_RE.search(body)
+
+        return False
+
+    @staticmethod
+    def _excluded_message(
+        normalized: NormalizedEmail,
+        *,
+        is_auto_reply: bool,
+    ) -> Message:
         return Message(
             provider_message_id=normalized.provider_message_id,
             provider_thread_id=normalized.provider_thread_id,
@@ -244,7 +299,7 @@ class GmailPollingService:
             received_at=normalized.received_at,
             subject=normalized.subject,
             processing_state="excluded",
-            is_auto_reply=True,
+            is_auto_reply=is_auto_reply,
             is_relevant=False,
             # The unbounded adapter body is never persisted by M2.
             content_excerpt=None,
