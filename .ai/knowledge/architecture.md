@@ -1,10 +1,11 @@
 # Architecture - Lead Management and Follow-Up Automation
 
-**Status:** AWAITING_HUMAN_APPROVAL  
-**Architecture version:** 1.0  
+**Status:** APPROVED
+**Architecture version:** 1.1
 **Related PRD:** v1.1 (approved)  
 **Lane:** Professional  
 **Date:** 2026-10-08
+**Approved by:** Human on 2026-10-08
 
 ## 1. Primary Approach and Rationale
 
@@ -26,6 +27,19 @@ The application exposes an internal FastAPI service for dashboard actions and he
 | Scheduler | Poll Gmail, coordinate controlled retries, and evaluate follow-up due states. | Repeated runs must be safe and must not duplicate reminders. |
 | PostgreSQL | Persist Confidential internal CRM state, activity, extraction state, and reminder state. | Not a log sink; application logs remain sanitized. |
 | FastAPI and Streamlit | Provide private operator actions and sales/manual-review visibility. | No public exposure or customer-facing message sending. |
+
+### Dashboard Visual Direction
+
+The user-supplied dashboard image is the approved visual reference for the MVP's sales interface. It guides layout, hierarchy, and interaction patterns only; its brand, copy, company names, people, monetary values, and sample records are not reused.
+
+- Use a calm, light, card-based CRM layout with generous whitespace, subtle borders, rounded surfaces, strong typographic hierarchy, and status-led accent colors.
+- Provide a persistent left navigation rail for Dashboard, Pipeline, Follow-up Tasks, Inbox/Manual Review, and Settings. The exact navigation labels may be adjusted to the approved MVP vocabulary.
+- Place page title, search, and filters at the top of the working area. Search/filter results must honor operator authorization and avoid leaking Confidential content in broad summaries.
+- Use summary cards for operational metrics supported by real MVP data: New Leads, High-priority Leads, Follow-ups Due, and Pending Extraction/Manual Review. Do not show pipeline value, revenue comparisons, or conversion metrics until their business definitions and data source are approved.
+- Use a Kanban-style pipeline as the primary review surface. Columns are generated from the approved sales-status vocabulary; lead cards show only the operator-relevant summary, priority, service/budget when validated, assigned owner when available, and next follow-up state.
+- Use an attention/detail panel for lead activity, extraction/manual-review status, score explanation, and the explicit `Record Response` action. The reference's customer-message action is intentionally excluded because automated prospect messaging is out of scope.
+- Raw email body content is shown only in an authorized lead detail view, never in summary cards, global search suggestions, or general error displays.
+- Keyboard-accessible controls and text labels accompany color-based statuses; responsive behavior must retain the manual-review and follow-up queues on smaller screens.
 
 ## 2. Data Flow
 
@@ -211,4 +225,5 @@ No implementation, provider call, mailbox access, production configuration, or t
 
 | Version | Date | Change | Related ADR |
 | --- | --- | --- | --- |
+| 1.1 | 2026-10-08 | Added the user-provided dashboard visual reference and MVP-specific adaptations. No data model, security, or runtime boundary changed. | None; visual refinement only. |
 | 1.0 | 2026-10-08 | Initial Professional Lane architecture for Gmail polling, conditional LLM extraction, deterministic lead logic, PostgreSQL CRM state, scheduling, and private sales dashboard. | None; no structural revision exists yet. |
