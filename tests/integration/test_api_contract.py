@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from app.api.dependencies import get_crm_session_factory, get_db_session
+from app.api.dependencies import get_crm_session_factory, get_db_session, require_operator
 from app.api.main import create_app
 from app.persistence.base import Base
 from app.persistence.database import build_session_factory
@@ -144,6 +144,7 @@ def api_context():
 
     application.dependency_overrides[get_crm_session_factory] = override_factory
     application.dependency_overrides[get_db_session] = override_session
+    application.dependency_overrides[require_operator] = lambda: None
     client = TestClient(application)
     yield client, engine, lead_id
     application.dependency_overrides.clear()
@@ -207,3 +208,43 @@ def test_operator_api_records_response_and_suppresses_reminder(api_context) -> N
         assert reminder.status == "suppressed"
         assert activity is not None
         assert activity.activity_type == "sales_response"
+
+
+def test_operator_api_requires_operator_token(api_context, monkeypatch) -> None:
+    _, engine, _ = api_context
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+    monkeypatch.setenv("OPERATOR_ACCESS_TOKEN", "synthetic-operator-token")
+    get_settings.cache_clear()
+    application = create_app()
+    session_factory = build_session_factory(engine)
+
+    def override_factory():
+        return session_factory
+
+    def override_session():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    application.dependency_overrides[get_crm_session_factory] = override_factory
+    application.dependency_overrides[get_db_session] = override_session
+    client = TestClient(application)
+
+    try:
+        assert client.get("/api/v1/dashboard/summary").status_code == 401
+        assert client.get(
+            "/api/v1/dashboard/summary",
+            headers={"X-Operator-Token": "wrong-token"},
+        ).status_code == 401
+        assert client.get(
+            "/api/v1/dashboard/summary",
+            headers={"X-Operator-Token": "synthetic-operator-token"},
+        ).status_code == 200
+    finally:
+        application.dependency_overrides.clear()
+        get_settings.cache_clear()
