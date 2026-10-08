@@ -1,9 +1,10 @@
 # Environment Schema
 
-**Status:** DRAFT - pending architecture approval  
+**Status:** APPROVED
 **Version:** 1.0  
 **Related PRD:** v1.1  
 **Date:** 2026-10-08
+**Approved by:** Human on 2026-10-08
 
 This schema defines configuration metadata only. It contains no credential values, customer records, or raw Gmail content. The Engineer creates the single root `.env.example` from this approved schema; the Human provisions real secrets through the selected local or deployment secret source.
 
@@ -13,13 +14,13 @@ This schema defines configuration metadata only. It contains no credential value
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `APP_ENV` | Application mode; enum | Required | local, test, private-operational | `test` | Engineer / runtime profile | No | All entrypoints; allow only documented values. |
 | `DATABASE_URL` | Internal CRM database connection URL | Required | local, test, private-operational | Empty in template | Human / approved local or deployment secret source | Yes | Persistence layer; absent, empty, or placeholder must stop before database/network work. |
+| `POSTGRES_PASSWORD` | Password for the local/private PostgreSQL container role | Required only when the Compose PostgreSQL service is used | local, test, private-operational | Empty in template | Human / approved local or deployment secret source | Yes | Compose database service; never logged, committed, or exposed to the dashboard. |
 | `GMAIL_TRANSPORT` | Gmail boundary mode; enum | Required | local, test, private-operational | `mock` | Architect / runtime profile | No | Gmail adapter; only `mock` or `live` allowed. Test must use `mock`. |
 | `GMAIL_OAUTH_CLIENT_ID` | Gmail OAuth client identifier | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved Google Cloud credential source | Yes | Gmail adapter; required before any live Gmail request. |
 | `GMAIL_OAUTH_CLIENT_SECRET` | Gmail OAuth client secret | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved Google Cloud credential source | Yes | Gmail adapter; required before any live Gmail request. |
 | `GMAIL_OAUTH_REFRESH_TOKEN` | Authorized mailbox refresh token | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved credential source | Yes | Gmail adapter; never logged or returned by the application. |
 | `GMAIL_MAILBOX_ADDRESS` | Authorized business mailbox identity | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | `sales@example.invalid` | Human / business mailbox administrator | No - Confidential | Gmail adapter; must match the approved mailbox and never appear in general logs. |
 | `GMAIL_LABEL_NAME` | Intake label name | Required | local, test, private-operational | `Sales Leads` | Human / business operator | No | Gmail adapter; messages without this label are excluded. |
-
 | `GMAIL_POLL_INTERVAL_SECONDS` | Email polling interval; positive integer | Required | local, test, private-operational | `UNKNOWN - approve operational value` | Architect / approved operational policy | No | Scheduler; reject non-positive values. |
 | `LLM_TRANSPORT` | LLM boundary mode; enum | Required | local, test, private-operational | `mock` | Architect / runtime profile | No | LLM adapter; only `mock` or `live` allowed. Test must use `mock`. |
 | `LLM_PROVIDER` | Provider adapter identifier | Required only when `LLM_TRANSPORT=live` | local, private-operational | `provider-name` | Human / approved provider decision | No | LLM adapter factory; must resolve to an allowlisted adapter. |
