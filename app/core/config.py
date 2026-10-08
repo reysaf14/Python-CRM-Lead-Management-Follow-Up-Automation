@@ -28,6 +28,11 @@ class Settings(BaseSettings):
 
     app_env: AppEnvironment = Field(validation_alias="APP_ENV")
     database_url: str = Field(validation_alias="DATABASE_URL", min_length=1)
+    api_base_url: str = Field(
+        default="http://api:8000",
+        validation_alias="API_BASE_URL",
+        min_length=1,
+    )
 
     gmail_transport: TransportMode = Field(validation_alias="GMAIL_TRANSPORT")
     gmail_oauth_client_id: SecretStr | None = Field(
