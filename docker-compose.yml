@@ -21,6 +21,7 @@ services:
     environment: &app_environment
       APP_ENV: ${APP_ENV:?APP_ENV must be set in .env}
       DATABASE_URL: postgresql+psycopg://crm:${POSTGRES_PASSWORD}@postgres:5432/crm
+      API_BASE_URL: ${API_BASE_URL:-http://api:8000}
       GMAIL_TRANSPORT: ${GMAIL_TRANSPORT:?GMAIL_TRANSPORT must be set in .env}
       GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-}
       GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-}
