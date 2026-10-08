@@ -1,10 +1,10 @@
 # Environment Schema
 
-**Status:** APPROVED
-**Version:** 1.0  
+**Status:** APPROVED BASELINE WITH ENGINEERING EXTENSION
+**Version:** 1.1
 **Related PRD:** v1.1  
 **Date:** 2026-10-08
-**Approved by:** Human on 2026-10-08
+**Approved by:** Human on 2026-10-08 for baseline v1.0; M6 added the internal API URL extension.
 
 This schema defines configuration metadata only. It contains no credential values, customer records, or raw Gmail content. The Engineer creates the single root `.env.example` from this approved schema; the Human provisions real secrets through the selected local or deployment secret source.
 
@@ -15,6 +15,7 @@ This schema defines configuration metadata only. It contains no credential value
 | `APP_ENV` | Application mode; enum | Required | local, test, private-operational | `test` | Engineer / runtime profile | No | All entrypoints; allow only documented values. |
 | `DATABASE_URL` | Internal CRM database connection URL | Required | local, test, private-operational | Empty in template | Human / approved local or deployment secret source | Yes | Persistence layer; absent, empty, or placeholder must stop before database/network work. |
 | `POSTGRES_PASSWORD` | Password for the local/private PostgreSQL container role | Required only when the Compose PostgreSQL service is used | local, test, private-operational | Empty in template | Human / approved local or deployment secret source | Yes | Compose database service; never logged, committed, or exposed to the dashboard. |
+| `API_BASE_URL` | Internal FastAPI base URL used by the Streamlit dashboard | Required by the dashboard process; defaults to `http://api:8000` in application settings | local, test, private-operational | `http://api:8000` | Human / deployment configuration | No | Private internal service URL only; never a public customer endpoint. |
 | `GMAIL_TRANSPORT` | Gmail boundary mode; enum | Required | local, test, private-operational | `mock` | Architect / runtime profile | No | Gmail adapter; only `mock` or `live` allowed. Test must use `mock`. |
 | `GMAIL_OAUTH_CLIENT_ID` | Gmail OAuth client identifier | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved Google Cloud credential source | Yes | Gmail adapter; required before any live Gmail request. |
 | `GMAIL_OAUTH_CLIENT_SECRET` | Gmail OAuth client secret | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved Google Cloud credential source | Yes | Gmail adapter; required before any live Gmail request. |
