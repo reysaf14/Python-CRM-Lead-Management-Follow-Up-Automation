@@ -1,75 +1,384 @@
-# Linux runtime dependency lock for the production image.
-# Development/test dependencies are isolated in requirements.dev.lock.
-alembic==1.20.0
-altair==6.3.0
-annotated-doc==0.0.5
-annotated-types==0.8.0
-anyio==4.15.1
-attrs==26.1.0
-certifi==2026.7.22
-cffi==2.1.1
-charset-normalizer==3.5.2
-click==8.5.0
-cryptography==50.0.2
-fastapi==0.142.4
-google-api-core==2.41.0
-google-api-python-client==2.201.0
-google-auth==2.61.0
-google-auth-httplib2==0.4.4
-google-auth-oauthlib==1.5.0
-googleapis-common-protos==1.75.5
-h11==0.16.0
-httpcore==1.0.9
-httplib2==0.32.0
-httptools==0.8.0
-httpx==0.28.1
-idna==3.20
-itsdangerous==2.2.0
-Jinja2==3.1.6
-jsonschema==4.26.0
-jsonschema-specifications==2025.9.1
-Mako==1.4.3
-MarkupSafe==3.0.4
-narwhals==2.26.0
-numpy==2.4.6
-oauthlib==4.0.0
-opentelemetry-api==1.45.1
-packaging==26.2
-pandas==3.0.6
-pillow==12.3.0
-proto-plus==1.29.0
-protobuf==7.36.2
-psycopg==3.3.6
-psycopg-binary==3.3.6
-pyarrow==25.0.1
-pyasn1==0.6.4
-pyasn1_modules==0.4.2
-pycparser==3.0
-pydantic==2.13.5
-pydantic-settings==2.15.0
-pydantic_core==2.46.5
-pydeck==0.9.3
-Pygments==2.21.0
-pyparsing==3.3.3
-python-dateutil==2.9.0.post0
-python-dotenv==1.2.4
-python-multipart==0.0.32
-PyYAML==6.0.3
-referencing==0.37.0
-requests==2.34.2
-requests-oauthlib==2.0.0
-rpds-py==2026.9.1
-six==1.17.0
-SQLAlchemy==2.1.4
-starlette==1.7.0
-streamlit==1.65.0
-toml==0.10.2
-typing-inspection==0.4.4
-typing_extensions==4.16.0
-uritemplate==4.2.0
-urllib3==2.8.0
-uvicorn==0.54.0
-uvloop==0.23.0
-watchdog==6.0.0
-watchfiles==1.3.0
-websockets==17.2
+# This file is generated from the approved exact production versions.
+# Every artifact used by the production Docker image is hash-pinned.
+alembic==1.20.0 \
+    --hash=sha256:77eb101048d95f982c0353e9233404889dcd7a6fc244c107836c0e2fc9cf7d9d
+    # via -r requirements.lock
+altair==6.3.0 \
+    --hash=sha256:7defb6ca730676dfc99a299768e2769f51585fcb3dc960ea71aacc368929d65e
+    # via
+    #   -r requirements.lock
+    #   streamlit
+annotated-doc==0.0.5 \
+    --hash=sha256:117bac03a25ede5df5440e855b32d556049ca169ead221505badf432fed4b101
+    # via
+    #   -r requirements.lock
+    #   fastapi
+annotated-types==0.8.0 \
+    --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
+    # via
+    #   -r requirements.lock
+    #   pydantic
+anyio==4.15.1 \
+    --hash=sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101
+    # via
+    #   -r requirements.lock
+    #   httpx
+    #   starlette
+    #   streamlit
+    #   watchfiles
+attrs==26.1.0 \
+    --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309
+    # via
+    #   -r requirements.lock
+    #   jsonschema
+    #   referencing
+certifi==2026.7.22 \
+    --hash=sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775
+    # via
+    #   -r requirements.lock
+    #   httpcore
+    #   httpx
+    #   requests
+cffi==2.1.1 \
+    --hash=sha256:34e261f78cb6ceaaa36f42f2613f4380d94d9c759a9c73c769ee6e0247364632
+    # via
+    #   -r requirements.lock
+    #   cryptography
+charset-normalizer==3.5.2 \
+    --hash=sha256:211d5a3eb6af8f513b8d4ca19a8c1b7accab1b5f0d3175f9826b03c1a920dc1f
+    # via
+    #   -r requirements.lock
+    #   requests
+click==8.5.0 \
+    --hash=sha256:255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360
+    # via
+    #   -r requirements.lock
+    #   streamlit
+    #   uvicorn
+cryptography==50.0.2 \
+    --hash=sha256:9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079
+    # via
+    #   -r requirements.lock
+    #   google-auth
+fastapi==0.142.4 \
+    --hash=sha256:8a651aa071a9f92c8217cca1d0b044bf9c326f336578be0a728a1a1f22ec52d2
+    # via -r requirements.lock
+google-api-core==2.41.0 \
+    --hash=sha256:1f3d626b7a8022dda8deef200b845057231ddc7cbf0d999026bdf61ba38d7fdf
+    # via
+    #   -r requirements.lock
+    #   google-api-python-client
+google-api-python-client==2.201.0 \
+    --hash=sha256:2d9bf1ba3f12eee8ed3d0f1791ce0605d163432f496baa72d3677faa2cf097d6
+    # via -r requirements.lock
+google-auth==2.61.0 \
+    --hash=sha256:ca60266a37475ae68b63bac007272f46094b3d571abe92aded329b6cfb568025
+    # via
+    #   -r requirements.lock
+    #   google-api-core
+    #   google-api-python-client
+    #   google-auth-httplib2
+    #   google-auth-oauthlib
+google-auth-httplib2==0.4.4 \
+    --hash=sha256:bbe5d7b2401bb3a4017f4720e1e91bd273ab9a2bb60b84e65edbc0de127852da
+    # via
+    #   -r requirements.lock
+    #   google-api-python-client
+google-auth-oauthlib==1.5.0 \
+    --hash=sha256:71625fdea21c6c03217eb9ff13741c3096e6d257ebca0ad084dbd6e9f4aa4ef4
+    # via -r requirements.lock
+googleapis-common-protos==1.75.5 \
+    --hash=sha256:d7285525c23039db98f2463e6d5a4f9b958b94d497f03a844ece3259c4e72d5d
+    # via
+    #   -r requirements.lock
+    #   google-api-core
+h11==0.16.0 \
+    --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
+    # via
+    #   -r requirements.lock
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9 \
+    --hash=sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55
+    # via
+    #   -r requirements.lock
+    #   httpx
+httplib2==0.32.0 \
+    --hash=sha256:dc6705cacdf3fb0a2aba7629fa33c90fd93e30035db0c157325826be177e4816
+    # via
+    #   -r requirements.lock
+    #   google-api-python-client
+    #   google-auth-httplib2
+httptools==0.8.0 \
+    --hash=sha256:57278e6fa0424c42a8a3e454828ab4f0aff27b40cddf9679579b98c6dce6a376
+    # via
+    #   -r requirements.lock
+    #   streamlit
+httpx==0.28.1 \
+    --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
+    # via -r requirements.lock
+idna==3.20 \
+    --hash=sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c
+    # via
+    #   -r requirements.lock
+    #   anyio
+    #   httpx
+    #   requests
+itsdangerous==2.2.0 \
+    --hash=sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef
+    # via
+    #   -r requirements.lock
+    #   streamlit
+jinja2==3.1.6 \
+    --hash=sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67
+    # via
+    #   -r requirements.lock
+    #   altair
+    #   pydeck
+jsonschema==4.26.0 \
+    --hash=sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce
+    # via
+    #   -r requirements.lock
+    #   altair
+jsonschema-specifications==2025.9.1 \
+    --hash=sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe
+    # via
+    #   -r requirements.lock
+    #   jsonschema
+mako==1.4.3 \
+    --hash=sha256:723296007c870bfd6b3f0c3230dba7198096e5269297ebf5e4eff9e7ffa39d4f
+    # via
+    #   -r requirements.lock
+    #   alembic
+markupsafe==3.0.4 \
+    --hash=sha256:6da83a088f8ef93b2d483a8232a4dbf4d69d3d8496b568a03c56becac43e1808
+    # via
+    #   -r requirements.lock
+    #   jinja2
+    #   mako
+narwhals==2.26.0 \
+    --hash=sha256:29326d74f107c347fd1009bd58e38d9f7c7c5b51e6de97bc93dbc325d9038b54
+    # via
+    #   -r requirements.lock
+    #   altair
+numpy==2.4.6 \
+    --hash=sha256:89cd468399cfd2504718f0ba50e410dca55a170b61a02ad92bb18c8a65186e93
+    # via
+    #   -r requirements.lock
+    #   pandas
+    #   pydeck
+    #   streamlit
+oauthlib==4.0.0 \
+    --hash=sha256:624c28c13a0a59cabf9747dfa52af63be3e512a7f2714df16e91b5b3a145e6cd
+    # via
+    #   -r requirements.lock
+    #   requests-oauthlib
+opentelemetry-api==1.45.1 \
+    --hash=sha256:b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb
+    # via
+    #   -r requirements.lock
+    #   fastapi
+    #   google-api-core
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e
+    # via
+    #   -r requirements.lock
+    #   altair
+    #   streamlit
+pandas==3.0.6 \
+    --hash=sha256:47121f9571503f724c9b93e297ab6254ac99c77adf5e9ed085ea419fd585c258
+    # via
+    #   -r requirements.lock
+    #   streamlit
+pillow==12.3.0 \
+    --hash=sha256:23d27a3e0307ec2244cc51e7287b919aa68d097504ebe19df4e76a98a3eea5bd
+    # via
+    #   -r requirements.lock
+    #   streamlit
+proto-plus==1.29.0 \
+    --hash=sha256:8acd070469a7aaf43f440b022ef9757c8cac1a9f866e933f59ae98669ddc6c8b
+    # via
+    #   -r requirements.lock
+    #   google-api-core
+protobuf==7.36.2 \
+    --hash=sha256:89f23aa53c24553a2416fd4fd1ec06f74fa42b14b546d8883128813f775bbfd2
+    # via
+    #   -r requirements.lock
+    #   google-api-core
+    #   googleapis-common-protos
+    #   proto-plus
+    #   streamlit
+psycopg==3.3.6 \
+    --hash=sha256:a1db9f7148b06a28606767efaca51fa6f9398c5c0a3810519be69d7000bdb631
+    # via -r requirements.lock
+psycopg-binary==3.3.6 \
+    --hash=sha256:a2e44a342d2aee40508e28a563d8961c39d9bbd8cae36d8578f0a3c6658aab0f
+    # via -r requirements.lock
+pyarrow==25.0.1 \
+    --hash=sha256:25f8720bf6387d5dc2ebd2622112de630760419e4b66134405dd24110d15f37e
+    # via
+    #   -r requirements.lock
+    #   streamlit
+pyasn1==0.6.4 \
+    --hash=sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b
+    # via
+    #   -r requirements.lock
+    #   pyasn1-modules
+pyasn1-modules==0.4.2 \
+    --hash=sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a
+    # via
+    #   -r requirements.lock
+    #   google-auth
+pycparser==3.0 \
+    --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
+    # via
+    #   -r requirements.lock
+    #   cffi
+pydantic==2.13.5 \
+    --hash=sha256:346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73
+    # via
+    #   -r requirements.lock
+    #   fastapi
+    #   pydantic-settings
+pydantic-core==2.46.5 \
+    --hash=sha256:49776eab08766a08dfff7012f8b422dcd7e25e43b316eedf0477c24fcfa84b7c
+    # via
+    #   -r requirements.lock
+    #   pydantic
+pydantic-settings==2.15.0 \
+    --hash=sha256:0ba092c291c94baceb5eff768aa0d56400a457585bc0175925a5a5510303da42
+    # via -r requirements.lock
+pydeck==0.9.3 \
+    --hash=sha256:d8a47c11c81fb12d51b1feb42427ff4f0e13cb599e48931021b2cba98b6849a6
+    # via
+    #   -r requirements.lock
+    #   streamlit
+pygments==2.21.0 \
+    --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9
+    # via -r requirements.lock
+pyparsing==3.3.3 \
+    --hash=sha256:ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4
+    # via
+    #   -r requirements.lock
+    #   httplib2
+python-dateutil==2.9.0.post0 \
+    --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
+    # via
+    #   -r requirements.lock
+    #   pandas
+python-dotenv==1.2.4 \
+    --hash=sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc
+    # via
+    #   -r requirements.lock
+    #   pydantic-settings
+python-multipart==0.0.32 \
+    --hash=sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23
+    # via
+    #   -r requirements.lock
+    #   streamlit
+pyyaml==6.0.3 \
+    --hash=sha256:b8bb0864c5a28024fac8a632c443c87c5aa6f215c0b126c449ae1a150412f31d
+    # via -r requirements.lock
+referencing==0.37.0 \
+    --hash=sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231
+    # via
+    #   -r requirements.lock
+    #   jsonschema
+    #   jsonschema-specifications
+requests==2.34.2 \
+    --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0
+    # via
+    #   -r requirements.lock
+    #   google-api-core
+    #   requests-oauthlib
+    #   streamlit
+requests-oauthlib==2.0.0 \
+    --hash=sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36
+    # via
+    #   -r requirements.lock
+    #   google-auth-oauthlib
+rpds-py==2026.9.1 \
+    --hash=sha256:136a1c3fe4402b7008bc81cb62ee538481795b61a7e83df88dff3b3f02b726ff
+    # via
+    #   -r requirements.lock
+    #   jsonschema
+    #   referencing
+six==1.17.0 \
+    --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274
+    # via
+    #   -r requirements.lock
+    #   python-dateutil
+sqlalchemy==2.1.4 \
+    --hash=sha256:343a0493a81278bfe30be1ec81214a55f2f44aaa4662d230be359ab2aa18cc2a
+    # via
+    #   -r requirements.lock
+    #   alembic
+starlette==1.7.0 \
+    --hash=sha256:67f8e99895493dd2911a03f11314af6ceebeae4e704bb9f43dfc6a9db151c93e
+    # via
+    #   -r requirements.lock
+    #   fastapi
+    #   streamlit
+streamlit==1.65.0 \
+    --hash=sha256:517a7254e223f4986d2b2e0745d02acf8ca64656943e63e422d345ce34a7495b
+    # via -r requirements.lock
+toml==0.10.2 \
+    --hash=sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b
+    # via
+    #   -r requirements.lock
+    #   streamlit
+typing-extensions==4.16.0 \
+    --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8
+    # via
+    #   -r requirements.lock
+    #   alembic
+    #   altair
+    #   anyio
+    #   fastapi
+    #   opentelemetry-api
+    #   psycopg
+    #   pydantic
+    #   pydantic-core
+    #   referencing
+    #   sqlalchemy
+    #   starlette
+    #   streamlit
+    #   typing-inspection
+typing-inspection==0.4.4 \
+    --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
+    # via
+    #   -r requirements.lock
+    #   fastapi
+    #   pydantic
+    #   pydantic-settings
+uritemplate==4.2.0 \
+    --hash=sha256:962201ba1c4edcab02e60f9a0d3821e82dfc5d2d6662a21abd533879bdb8a686
+    # via
+    #   -r requirements.lock
+    #   google-api-python-client
+urllib3==2.8.0 \
+    --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3
+    # via
+    #   -r requirements.lock
+    #   requests
+uvicorn==0.54.0 \
+    --hash=sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf
+    # via
+    #   -r requirements.lock
+    #   streamlit
+uvloop==0.23.0 \
+    --hash=sha256:ab17b3a8aa754be0de0e397f7b95f13b14e56f077a4c6ae295e3d4afd199b325
+    # via -r requirements.lock
+watchdog==6.0.0 \
+    --hash=sha256:20ffe5b202af80ab4266dcd3e91aae72bf2da48c0d33bdb15c66658e685e94e2
+    # via
+    #   -r requirements.lock
+    #   streamlit
+watchfiles==1.3.0 \
+    --hash=sha256:b5768b49e426fd5b550b012c866db347cdf15c398ef98dc557b6e6b72fa74cd1
+    # via -r requirements.lock
+websockets==17.2 \
+    --hash=sha256:376a693697ddb695ea282ead76060f4847f90e564b12b4389f2c7589e6fadb9e
+    # via
+    #   -r requirements.lock
+    #   streamlit

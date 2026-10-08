@@ -26,7 +26,7 @@ RUN test -n "$SOURCE_MANIFEST_SHA256" \
 COPY pyproject.toml ./
 COPY requirements.lock ./
 
-RUN python -m pip install --no-cache-dir -r requirements.lock
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY app ./app
 COPY alembic.ini ./alembic.ini
