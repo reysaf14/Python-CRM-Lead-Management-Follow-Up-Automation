@@ -33,6 +33,9 @@ include = ["app*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+  "postgres: tests requiring an isolated PostgreSQL target",
+]
 
 [tool.ruff]
 line-length = 100
