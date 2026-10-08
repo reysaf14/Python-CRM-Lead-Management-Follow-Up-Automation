@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.dependencies import get_crm_session_factory, get_db_session
+from app.api.dependencies import get_crm_session_factory, get_db_session, require_operator
 from app.api.schemas import (
     FollowUpResponse,
     LeadCardResponse,
@@ -21,7 +21,7 @@ from app.services.crm_views import CRMViewService
 from app.services.follow_up import SalesResponseService
 
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_operator)])
 views = CRMViewService()
 
 
