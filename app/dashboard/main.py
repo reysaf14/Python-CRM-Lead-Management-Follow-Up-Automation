@@ -7,6 +7,7 @@ from typing import Any
 import streamlit as st
 
 from app.core.config import get_settings
+from app.dashboard.access import is_valid_operator_token
 from app.dashboard.client import CRMAPIClient, CRMAPIError
 
 
@@ -25,8 +26,37 @@ st.markdown(
 )
 
 
+def _require_dashboard_access() -> None:
+    """Require an operator login before rendering CRM data or API actions."""
+
+    if st.session_state.get("dashboard_authenticated") is True:
+        return
+
+    st.title("Lead Management")
+    st.caption("Private sales CRM")
+    with st.form("operator-login"):
+        candidate = st.text_input("Operator access token", type="password")
+        submitted = st.form_submit_button("Unlock dashboard")
+    if submitted:
+        expected = (
+            settings.operator_access_token.get_secret_value()
+            if settings.operator_access_token is not None
+            else None
+        )
+        if is_valid_operator_token(candidate, expected):
+            st.session_state["dashboard_authenticated"] = True
+            st.rerun()
+        st.error("Invalid operator access token.")
+    st.stop()
+
+
 def _client() -> CRMAPIClient:
-    return CRMAPIClient(settings.api_base_url)
+    access_token = (
+        settings.operator_access_token.get_secret_value()
+        if settings.operator_access_token is not None
+        else None
+    )
+    return CRMAPIClient(settings.api_base_url, access_token=access_token)
 
 
 def _show_api_error() -> None:
@@ -193,6 +223,8 @@ def _render_manual_review(client: CRMAPIClient) -> None:
     for lead in leads:
         _render_lead_card(lead)
 
+
+_require_dashboard_access()
 
 with st.sidebar:
     st.title("Lead Management")
