@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    cpus: 1.0
+    mem_limit: 512m
+    pids_limit: 256
     environment:
       POSTGRES_DB: crm
       POSTGRES_USER: crm
@@ -12,16 +15,51 @@ services:
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crm_db
 
   api:
     build:
       context: .
       dockerfile: Dockerfile
     command: ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    environment: &app_environment
+    environment:
+      SERVICE_ROLE: api
       APP_ENV: ${APP_ENV:?APP_ENV must be set in .env}
       DATABASE_URL: postgresql+psycopg://crm:${POSTGRES_PASSWORD}@postgres:5432/crm
-      API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+      OPERATOR_ACCESS_TOKEN: ${OPERATOR_ACCESS_TOKEN:?OPERATOR_ACCESS_TOKEN must be set in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OPERATOR_ACCESS_MODE: ${OPERATOR_ACCESS_MODE:?OPERATOR_ACCESS_MODE must be set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    cpus: 1.0
+    mem_limit: 512m
+    pids_limit: 256
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "10001:10001"
+    networks:
+      - crm_db
+      - operator
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.workers.main"]
+    environment:
+      SERVICE_ROLE: worker
+      APP_ENV: ${APP_ENV:?APP_ENV must be set in .env}
+      DATABASE_URL: postgresql+psycopg://crm:${POSTGRES_PASSWORD}@postgres:5432/crm
       GMAIL_TRANSPORT: ${GMAIL_TRANSPORT:?GMAIL_TRANSPORT must be set in .env}
       GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-}
       GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-}
@@ -43,19 +81,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "127.0.0.1:8000:8000"
-    restart: unless-stopped
-
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: ["python", "-m", "app.workers.main"]
-    environment: *app_environment
-    depends_on:
-      postgres:
-        condition: service_healthy
+    cpus: 1.0
+    mem_limit: 384m
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "10001:10001"
+    networks:
+      - crm_db
+      - provider
     restart: "no"
 
   dashboard:
@@ -63,13 +102,39 @@ services:
       context: .
       dockerfile: Dockerfile
     command: ["streamlit", "run", "app/dashboard/main.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
-    environment: *app_environment
+    environment:
+      SERVICE_ROLE: dashboard
+      APP_ENV: ${APP_ENV:?APP_ENV must be set in .env}
+      API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+      OPERATOR_ACCESS_TOKEN: ${OPERATOR_ACCESS_TOKEN:?OPERATOR_ACCESS_TOKEN must be set in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      OPERATOR_ACCESS_MODE: ${OPERATOR_ACCESS_MODE:?OPERATOR_ACCESS_MODE must be set in .env}
     depends_on:
       postgres:
         condition: service_healthy
+    cpus: 1.0
+    mem_limit: 512m
+    pids_limit: 256
     ports:
       - "127.0.0.1:8501:8501"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: "10001:10001"
+    networks:
+      - operator
     restart: unless-stopped
 
 volumes:
   postgres_data:
+
+networks:
+  crm_db:
+    internal: true
+  operator:
+    {}
+  provider:
