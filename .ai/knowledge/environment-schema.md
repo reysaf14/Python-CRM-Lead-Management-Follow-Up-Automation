@@ -1,7 +1,7 @@
 # Environment Schema
 
 **Status:** APPROVED BASELINE WITH ENGINEERING EXTENSION
-**Version:** 1.1
+**Version:** 1.2
 **Related PRD:** v1.1  
 **Date:** 2026-10-08
 **Approved by:** Human on 2026-10-08 for baseline v1.0; M6 added the internal API URL extension.
@@ -18,6 +18,8 @@ This schema defines configuration metadata only. It contains no credential value
 | `POSTGRES_PASSWORD` | Password for the local/private PostgreSQL container role | Required only when the Compose PostgreSQL service is used | local, test, private-operational | Empty in template | Human / approved local or deployment secret source | Yes | Compose database service; never logged, committed, or exposed to the dashboard. |
 | `API_BASE_URL` | Internal FastAPI base URL used by the Streamlit dashboard | Required by the dashboard process; defaults to `http://api:8000` in application settings | local, test, private-operational | `http://api:8000` | Human / deployment configuration | No | Private internal service URL only; never a public customer endpoint. |
 | `OPERATOR_ACCESS_TOKEN` | Shared private operator API token for the current single-operator MVP | Required for API, dashboard, and application roles outside test profile | local, private-operational | Empty in template | Human / approved secret source | Yes | FastAPI operator routes and Streamlit API client; compared in constant time and never logged. |
+| `SOURCE_MANIFEST_SHA256` | Canonical SHA-256 of the effective Docker build target input manifest | Required only when Docker Compose builds an application image | local, test, private-operational | Empty in template | Engineer build script | No | Compose build argument; must be generated from committed Docker inputs and is embedded in the image label. |
+| `SOURCE_CANDIDATE_ID` | Immutable source candidate identifier in the form `git:<full-commit-SHA>` | Required only when Docker Compose builds an application image | local, test, private-operational | Empty in template | Engineer build script | No | Compose build argument; must match the source candidate recorded in the manifest and image label. |
 | `GMAIL_TRANSPORT` | Gmail boundary mode; enum | Required | local, test, private-operational | `mock` | Architect / runtime profile | No | Gmail adapter; only `mock` or `live` allowed. Test must use `mock`. |
 | `GMAIL_OAUTH_CLIENT_ID` | Gmail OAuth client identifier | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved Google Cloud credential source | Yes | Gmail adapter; required before any live Gmail request. |
 | `GMAIL_OAUTH_CLIENT_SECRET` | Gmail OAuth client secret | Required only when `GMAIL_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved Google Cloud credential source | Yes | Gmail adapter; required before any live Gmail request. |
@@ -50,5 +52,6 @@ All entrypoints use the same explicit configuration loader. Required live-mode v
 ## Provisioning and Handoff Notes
 
 - The Engineer creates one root `.env.example` with safe examples from this schema and no actual credential values.
+- Before a Compose image build, the Engineer generates the target manifest from committed Docker inputs and sets `SOURCE_MANIFEST_SHA256` and `SOURCE_CANDIDATE_ID` from that output. Omitted or placeholder provenance values must fail the image build before dependency installation.
 - The Human provisions Gmail and LLM credentials through an approved local or deployment secret source; credentials are never pasted into chat, logs, test fixtures, or repository files.
 - The Engineer documents actual consumers and validates missing-value behavior. DevOps, if later required, documents the runtime wiring and test isolation.

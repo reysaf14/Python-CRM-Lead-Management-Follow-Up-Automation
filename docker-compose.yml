@@ -22,6 +22,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production
+      args:
+        SOURCE_MANIFEST_SHA256: ${SOURCE_MANIFEST_SHA256:?SOURCE_MANIFEST_SHA256 must be generated from committed Docker inputs}
+        SOURCE_CANDIDATE_ID: ${SOURCE_CANDIDATE_ID:?SOURCE_CANDIDATE_ID must identify the committed source candidate}
     command: ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
       SERVICE_ROLE: api
@@ -55,6 +59,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production
+      args:
+        SOURCE_MANIFEST_SHA256: ${SOURCE_MANIFEST_SHA256:?SOURCE_MANIFEST_SHA256 must be generated from committed Docker inputs}
+        SOURCE_CANDIDATE_ID: ${SOURCE_CANDIDATE_ID:?SOURCE_CANDIDATE_ID must identify the committed source candidate}
     command: ["python", "-m", "app.workers.main"]
     environment:
       SERVICE_ROLE: worker
@@ -101,6 +109,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: production
+      args:
+        SOURCE_MANIFEST_SHA256: ${SOURCE_MANIFEST_SHA256:?SOURCE_MANIFEST_SHA256 must be generated from committed Docker inputs}
+        SOURCE_CANDIDATE_ID: ${SOURCE_CANDIDATE_ID:?SOURCE_CANDIDATE_ID must identify the committed source candidate}
     command: ["streamlit", "run", "app/dashboard/main.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
     environment:
       SERVICE_ROLE: dashboard

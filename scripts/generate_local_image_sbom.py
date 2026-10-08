@@ -122,6 +122,12 @@ def main() -> None:
         raise SystemExit(
             f"image manifest binding mismatch: expected {expected_manifest}, got {actual_manifest}"
         )
+    expected_candidate = manifest["sourceCandidate"]
+    actual_candidate = labels.get("org.opencontainers.image.source-candidate")
+    if actual_candidate != expected_candidate:
+        raise SystemExit(
+            f"image candidate binding mismatch: expected {expected_candidate}, got {actual_candidate}"
+        )
 
     digest = image.get("RepoDigests", [args.image])[0]
     image_id = image["Id"]
@@ -167,7 +173,8 @@ def main() -> None:
             "creators": ["Tool: generate_local_image_sbom.py"],
             "comment": (
                 f"Image digest: {digest}; image ID: {image_id}; "
-                f"source manifest SHA-256: {expected_manifest}."
+                f"source manifest SHA-256: {expected_manifest}; "
+                f"source candidate: {expected_candidate}."
             ),
         },
         "packages": packages,

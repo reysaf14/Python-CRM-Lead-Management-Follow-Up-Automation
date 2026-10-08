@@ -1,7 +1,7 @@
 FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93 AS runtime
 
-ARG SOURCE_MANIFEST_SHA256=UNBOUND
-ARG SOURCE_CANDIDATE_ID=UNBOUND
+ARG SOURCE_MANIFEST_SHA256
+ARG SOURCE_CANDIDATE_ID
 
 LABEL org.opencontainers.image.source-manifest-sha256=$SOURCE_MANIFEST_SHA256 \
       org.opencontainers.image.source-candidate=$SOURCE_CANDIDATE_ID
@@ -12,6 +12,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
 
 WORKDIR /app
+
+RUN test -n "$SOURCE_MANIFEST_SHA256" \
+    && test "$SOURCE_MANIFEST_SHA256" != "UNBOUND" \
+    && test "${#SOURCE_MANIFEST_SHA256}" -eq 64 \
+    && case "$SOURCE_MANIFEST_SHA256" in *[!0-9a-f]*) exit 1 ;; esac \
+    && test -n "$SOURCE_CANDIDATE_ID" \
+    && test "$SOURCE_CANDIDATE_ID" != "UNBOUND" \
+    && test "${#SOURCE_CANDIDATE_ID}" -eq 44 \
+    && case "$SOURCE_CANDIDATE_ID" in git:*) ;; *) exit 1 ;; esac \
+    && case "${SOURCE_CANDIDATE_ID#git:}" in *[!0-9a-f]*) exit 1 ;; esac
 
 COPY pyproject.toml ./
 COPY requirements.lock ./
