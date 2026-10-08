@@ -1,7 +1,7 @@
 # Environment Schema
 
 **Status:** APPROVED BASELINE WITH ENGINEERING EXTENSION
-**Version:** 1.2
+**Version:** 1.3
 **Related PRD:** v1.1  
 **Date:** 2026-10-08
 **Approved by:** Human on 2026-10-08 for baseline v1.0; M6 added the internal API URL extension.
@@ -28,10 +28,10 @@ This schema defines configuration metadata only. It contains no credential value
 | `GMAIL_LABEL_NAME` | Intake label name | Required | local, test, private-operational | `Sales Leads` | Human / business operator | No | Gmail adapter; messages without this label are excluded. |
 | `GMAIL_POLL_INTERVAL_SECONDS` | Email polling interval; positive integer | Required | local, test, private-operational | `UNKNOWN - approve operational value` | Architect / approved operational policy | No | Scheduler; reject non-positive values. |
 | `LLM_TRANSPORT` | LLM boundary mode; enum | Required | local, test, private-operational | `mock` | Architect / runtime profile | No | LLM adapter; only `mock` or `live` allowed. Test must use `mock`. |
-| `LLM_PROVIDER` | Provider adapter identifier | Required only when `LLM_TRANSPORT=live` | local, private-operational | `provider-name` | Human / approved provider decision | No | LLM adapter factory; must resolve to an allowlisted adapter. |
-| `LLM_MODEL` | Provider model identifier | Required only when `LLM_TRANSPORT=live` | local, private-operational | `model-name` | Human / approved provider decision | No | LLM adapter; validates against the selected adapter policy. |
+| `LLM_PROVIDER` | Provider adapter identifier | Required only when `LLM_TRANSPORT=live` | local, private-operational | `deepseek` | Human / approved provider decision | No | LLM adapter factory; currently allowlists `deepseek`. |
+| `LLM_MODEL` | Provider model identifier | Required only when `LLM_TRANSPORT=live` | local, private-operational | `approved-model-name` | Human / approved provider decision | No | LLM adapter; required for the selected provider. |
 | `LLM_API_KEY` | LLM provider authentication material | Required only when `LLM_TRANSPORT=live` | local, private-operational | Empty in template | Human / approved credential source | Yes | LLM adapter; never logged or sent to the dashboard. |
-| `LLM_BASE_URL` | Provider endpoint URL override | Optional; required only for a non-default approved endpoint | local, test, private-operational | Empty in template | Architect / approved provider profile | No | LLM adapter; must match the allowlisted selected-provider profile. |
+| `LLM_BASE_URL` | Provider endpoint URL override | Optional; only the allowlisted DeepSeek endpoint is accepted | local, test, private-operational | `https://api.deepseek.com` | Architect / approved provider profile | No | LLM adapter; exact host allowlist prevents arbitrary outbound endpoint configuration. |
 | `LLM_MAX_INPUT_CHARS` | Maximum minimized subject/body input length | Required | local, test, private-operational | `UNKNOWN - approve data-minimization limit` | Architect / approved data-minimization policy | No | Extraction-preparation service; reject values outside approved bounds. |
 | `LLM_TIMEOUT_SECONDS` | Per-extraction timeout; positive integer | Required | local, test, private-operational | `UNKNOWN - approve timeout` | Architect / approved operational policy | No | LLM adapter; timeout produces `Pending Extraction`, not a successful lead qualification. |
 | `LLM_RETRY_MAX` | Maximum controlled retry count for retryable extraction failures | Required | local, test, private-operational | `UNKNOWN - approve retry limit` | Architect / approved operational policy | No | Retry coordinator; reject negative values. |
@@ -53,5 +53,6 @@ All entrypoints use the same explicit configuration loader. Required live-mode v
 
 - The Engineer creates one root `.env.example` with safe examples from this schema and no actual credential values.
 - Before a Compose image build, the Engineer generates the target manifest from committed Docker inputs and sets `SOURCE_MANIFEST_SHA256` and `SOURCE_CANDIDATE_ID` from that output. Omitted or placeholder provenance values must fail the image build before dependency installation.
+- Live LLM transport currently supports only the explicitly allowlisted DeepSeek Chat Completions endpoint. The Human provisions the API key and model selection outside the repository; the Engineer must use synthetic transport tests when those values are unavailable.
 - The Human provisions Gmail and LLM credentials through an approved local or deployment secret source; credentials are never pasted into chat, logs, test fixtures, or repository files.
 - The Engineer documents actual consumers and validates missing-value behavior. DevOps, if later required, documents the runtime wiring and test isolation.

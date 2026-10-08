@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+
+import httpx
 
 
 class LLMAdapterError(RuntimeError):
@@ -61,3 +64,63 @@ class MockLLMClient:
             "confidence": 0.0,
             "ambiguity_flags": ["mock_response_not_configured"],
         }
+
+
+class DeepSeekLLMClient:
+    """Bounded DeepSeek JSON client behind the provider-neutral LLM contract."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        base_url: str,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        self._api_key = api_key
+        self._endpoint = base_url.rstrip("/") + "/chat/completions"
+        self._transport = transport
+
+    def extract_structured(self, request: LLMExtractionRequest) -> Mapping[str, Any]:
+        if not request.model:
+            raise LLMAdapterError("llm_model_missing", retryable=False)
+
+        payload = {
+            "model": request.model,
+            "messages": [{"role": "user", "content": request.prompt}],
+            "response_format": {"type": "json_object"},
+            "temperature": 0,
+            "stream": False,
+        }
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        try:
+            with httpx.Client(
+                timeout=request.timeout_seconds,
+                transport=self._transport,
+            ) as client:
+                response = client.post(self._endpoint, headers=headers, json=payload)
+        except httpx.TimeoutException:
+            raise LLMAdapterError("llm_timeout", retryable=True) from None
+        except httpx.RequestError:
+            raise LLMAdapterError("llm_transport_failed", retryable=True) from None
+
+        if response.status_code in {401, 403}:
+            raise LLMAdapterError("llm_auth_failed", retryable=False)
+        if response.status_code == 429:
+            raise LLMAdapterError("llm_rate_limited", retryable=True) from None
+        if response.status_code >= 500:
+            raise LLMAdapterError("llm_provider_failed", retryable=True) from None
+        if response.status_code >= 400:
+            raise LLMAdapterError("llm_request_rejected", retryable=False) from None
+
+        try:
+            document = response.json()
+            content = document["choices"][0]["message"]["content"]
+            result = json.loads(content)
+        except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError):
+            raise LLMAdapterError("llm_invalid_response", retryable=False) from None
+        if not isinstance(result, Mapping):
+            raise LLMAdapterError("llm_invalid_response", retryable=False)
+        return result

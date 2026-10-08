@@ -12,6 +12,8 @@ TransportMode = Literal["mock", "live"]
 ServiceRole = Literal["application", "api", "worker", "dashboard"]
 
 APPROVED_GMAIL_LABEL_NAME = "Sales Leads"
+SUPPORTED_LLM_PROVIDERS = {"deepseek"}
+DEEPSEEK_DEFAULT_BASE_URL = "https://api.deepseek.com"
 
 
 class Settings(BaseSettings):
@@ -116,6 +118,10 @@ class Settings(BaseSettings):
             self._require_text(self.llm_provider, "LLM_PROVIDER")
             self._require_text(self.llm_model, "LLM_MODEL")
             self._require_secret(self.llm_api_key, "LLM_API_KEY")
+            if self.llm_provider not in SUPPORTED_LLM_PROVIDERS:
+                raise ValueError("LLM_PROVIDER is not allowlisted for live transport")
+            if self.llm_base_url and self.llm_base_url.rstrip("/") != DEEPSEEK_DEFAULT_BASE_URL:
+                raise ValueError("LLM_BASE_URL must use the allowlisted DeepSeek endpoint")
 
         return self
 

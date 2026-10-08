@@ -1,6 +1,7 @@
 """Provider-neutral structured extraction adapters."""
 
 from app.adapters.llm.client import (
+    DeepSeekLLMClient,
     LLMAdapterError,
     LLMClient,
     LLMExtractionRequest,
@@ -12,6 +13,7 @@ __all__ = [
     "LLMAdapterError",
     "LLMClient",
     "LLMExtractionRequest",
+    "DeepSeekLLMClient",
     "MockLLMClient",
     "build_llm_client",
 ]

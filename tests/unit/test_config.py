@@ -66,3 +66,15 @@ def test_live_gmail_requires_all_authorization_values(monkeypatch: pytest.Monkey
 def test_only_approved_gmail_label_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(ValidationError, match="GMAIL_LABEL_NAME"):
         settings_from(monkeypatch, GMAIL_LABEL_NAME="Personal")
+
+
+def test_live_llm_requires_an_allowlisted_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(ValidationError, match="LLM_PROVIDER"):
+        settings_from(
+            monkeypatch,
+            APP_ENV="local",
+            LLM_TRANSPORT="live",
+            LLM_PROVIDER="untrusted-provider",
+            LLM_MODEL="synthetic-model",
+            LLM_API_KEY="synthetic-key",
+        )
