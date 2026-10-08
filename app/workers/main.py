@@ -1,4 +1,4 @@
-"""M2 Gmail polling worker entrypoint."""
+"""M5 Gmail polling and sales follow-up worker entrypoint."""
 
 import logging
 import time
@@ -8,9 +8,12 @@ from app.adapters.gmail import GmailAdapterError, build_gmail_adapter
 from app.adapters.llm import LLMAdapterError, build_llm_client
 from app.core.config import get_settings
 from app.core.logging import configure_logging, log_event
+from app.domain.scoring import DEFAULT_SCORING_RULES
 from app.persistence.database import get_session_factory
 from app.services.gmail_polling import GmailPollingService, PollResult
 from app.services.extraction import LeadExtractionService
+from app.services.follow_up import FollowUpSchedulerService
+from app.services.scoring import LeadScoringService
 
 
 def run_polling_loop(
@@ -46,24 +49,33 @@ def run_polling_loop(
         )
         return 1
 
+    session_factory = get_session_factory()
+    scoring_service = LeadScoringService(
+        session_factory=session_factory,
+        rules=DEFAULT_SCORING_RULES,
+    )
+    follow_up_service = FollowUpSchedulerService(session_factory=session_factory)
+
     extraction_service = LeadExtractionService(
         llm_client=llm_client,
-        session_factory=get_session_factory(),
+        session_factory=session_factory,
         model=settings.llm_model,
         max_input_chars=settings.llm_max_input_chars,
         timeout_seconds=settings.llm_timeout_seconds,
         retry_max=settings.llm_retry_max,
+        scoring_service=scoring_service,
     )
 
     service = GmailPollingService(
         adapter=adapter,
-        session_factory=get_session_factory(),
+        session_factory=session_factory,
         mailbox_key=settings.gmail_mailbox_address or "mock-mailbox",
         label_name=settings.gmail_label_name,
         extraction_service=extraction_service,
     )
 
     cycle = 0
+    next_follow_up_scan_at = 0.0
     while max_cycles is None or cycle < max_cycles:
         result: PollResult = service.poll_once()
         log_event(
@@ -72,6 +84,18 @@ def run_polling_loop(
             status="completed" if result.succeeded else "failed",
             error_category=result.error_category,
         )
+        now_monotonic = time.monotonic()
+        if now_monotonic >= next_follow_up_scan_at:
+            follow_up_result = follow_up_service.scan_once()
+            log_event(
+                logger,
+                action="follow_up_scan",
+                status="completed" if follow_up_result.succeeded else "failed",
+                error_category=follow_up_result.error_category,
+            )
+            next_follow_up_scan_at = (
+                now_monotonic + settings.follow_up_scan_interval_seconds
+            )
         cycle += 1
         if max_cycles is not None and cycle >= max_cycles:
             break
