@@ -11,10 +11,21 @@ from email.utils import parsedate_to_datetime, parseaddr
 from typing import Any, Protocol, Sequence
 
 from app.core.config import Settings
+from app.core.config import APPROVED_GMAIL_LABEL_NAME
 
 
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
+MAX_MIME_BODY_BYTES = 1_000_000
+MAX_PROVIDER_MESSAGE_BYTES = MAX_MIME_BODY_BYTES
+MAX_MIME_PARTS = 100
+MAX_MIME_DEPTH = 10
+
+
+@dataclass
+class _MimeBudget:
+    decoded_bytes: int = 0
+    part_count: int = 0
 
 
 class GmailAdapterError(RuntimeError):
@@ -68,20 +79,49 @@ def _decode_body(data: str) -> str:
         raise GmailAdapterError("invalid_body_encoding") from None
 
 
-def _walk_body_parts(part: dict[str, Any], plain_parts: list[str], html_parts: list[str]) -> None:
+def _walk_body_parts(
+    part: dict[str, Any],
+    plain_parts: list[str],
+    html_parts: list[str],
+    *,
+    depth: int,
+    budget: _MimeBudget,
+) -> None:
+    if depth > MAX_MIME_DEPTH:
+        raise GmailAdapterError("mime_depth_exceeded")
+    budget.part_count += 1
+    if budget.part_count > MAX_MIME_PARTS:
+        raise GmailAdapterError("mime_part_limit_exceeded")
+
     mime_type = str(part.get("mimeType", "")).lower()
     body = part.get("body") or {}
     data = body.get("data")
     if data:
-        decoded = _decode_body(str(data))
+        encoded = str(data)
+        remaining_bytes = MAX_MIME_BODY_BYTES - budget.decoded_bytes
+        if len(encoded) > ((remaining_bytes * 4) // 3) + 4:
+            raise GmailAdapterError("mime_body_too_large")
+        decoded = _decode_body(encoded)
+        budget.decoded_bytes += len(decoded.encode("utf-8"))
+        if budget.decoded_bytes > MAX_MIME_BODY_BYTES:
+            raise GmailAdapterError("mime_body_too_large")
         if mime_type == "text/plain":
             plain_parts.append(decoded)
         elif mime_type == "text/html":
             html_parts.append(decoded)
 
-    for child in part.get("parts") or []:
+    children = part.get("parts") or []
+    if len(children) > MAX_MIME_PARTS:
+        raise GmailAdapterError("mime_part_limit_exceeded")
+    for child in children:
         if isinstance(child, dict):
-            _walk_body_parts(child, plain_parts, html_parts)
+            _walk_body_parts(
+                child,
+                plain_parts,
+                html_parts,
+                depth=depth + 1,
+                budget=budget,
+            )
 
 
 def extract_text_body(payload: dict[str, Any]) -> str | None:
@@ -89,7 +129,13 @@ def extract_text_body(payload: dict[str, Any]) -> str | None:
 
     plain_parts: list[str] = []
     html_parts: list[str] = []
-    _walk_body_parts(payload, plain_parts, html_parts)
+    _walk_body_parts(
+        payload,
+        plain_parts,
+        html_parts,
+        depth=0,
+        budget=_MimeBudget(),
+    )
     if plain_parts:
         return "\n\n".join(part.strip() for part in plain_parts if part.strip()) or None
     if html_parts:
@@ -194,6 +240,7 @@ class LiveGmailAdapter:
         self._settings = settings
         self._service = service or self._build_service(settings)
         self._label_ids: dict[str, str] = {}
+        self._identity_verified = False
 
     @staticmethod
     def _build_service(settings: Settings) -> Any:
@@ -228,7 +275,24 @@ class LiveGmailAdapter:
                 return self._label_ids[label_name]
         raise GmailAdapterError("label_not_found")
 
+    def _verify_mailbox_identity(self) -> None:
+        if self._identity_verified:
+            return
+        try:
+            profile = self._service.users().getProfile(userId="me").execute()
+            authenticated_address = str(profile.get("emailAddress", "")).strip().lower()
+        except Exception:
+            raise GmailAdapterError("mailbox_identity_verification_failed") from None
+
+        expected_address = (self._settings.gmail_mailbox_address or "").strip().lower()
+        if not authenticated_address or authenticated_address != expected_address:
+            raise GmailAdapterError("mailbox_identity_mismatch")
+        self._identity_verified = True
+
     def list_messages(self, *, label_name: str, cursor: str | None) -> GmailPage:
+        if label_name != APPROVED_GMAIL_LABEL_NAME:
+            raise GmailAdapterError("unapproved_gmail_label")
+        self._verify_mailbox_identity()
         label_id = self._get_label_id(label_name)
         try:
             response = (
@@ -248,10 +312,37 @@ class LiveGmailAdapter:
                 message_id = summary.get("id")
                 if not message_id:
                     raise GmailAdapterError("missing_provider_identity")
+                metadata = (
+                    self._service.users()
+                    .messages()
+                    .get(
+                        userId="me",
+                        id=message_id,
+                        format="metadata",
+                        fields="id,threadId,sizeEstimate",
+                    )
+                    .execute()
+                )
+                raw_size_estimate = metadata.get("sizeEstimate")
+                if raw_size_estimate is None:
+                    raise GmailAdapterError("missing_provider_size_estimate")
+                try:
+                    size_estimate = int(raw_size_estimate)
+                except (TypeError, ValueError):
+                    raise GmailAdapterError("invalid_provider_size_estimate") from None
+                if size_estimate < 0:
+                    raise GmailAdapterError("invalid_provider_size_estimate")
+                if size_estimate > MAX_PROVIDER_MESSAGE_BYTES:
+                    raise GmailAdapterError("provider_message_size_exceeded")
                 payload = (
                     self._service.users()
                     .messages()
-                    .get(userId="me", id=message_id, format="full")
+                    .get(
+                        userId="me",
+                        id=message_id,
+                        format="full",
+                        fields="id,threadId,internalDate,payload",
+                    )
                     .execute()
                 )
                 messages.append(normalize_gmail_message(payload, label_names=[label_name]))
