@@ -7,6 +7,7 @@ from app.core.config import Settings
 BASE_ENV = {
     "APP_ENV": "test",
     "DATABASE_URL": "postgresql+psycopg://crm:test@localhost:5432/crm_test",
+    "OPERATOR_ACCESS_TOKEN": "synthetic-operator-token",
     "GMAIL_TRANSPORT": "mock",
     "GMAIL_LABEL_NAME": "Sales Leads",
     "GMAIL_POLL_INTERVAL_SECONDS": "60",
@@ -61,3 +62,7 @@ def test_live_gmail_requires_all_authorization_values(monkeypatch: pytest.Monkey
             GMAIL_MAILBOX_ADDRESS="sales@example.invalid",
         )
 
+
+def test_only_approved_gmail_label_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(ValidationError, match="GMAIL_LABEL_NAME"):
+        settings_from(monkeypatch, GMAIL_LABEL_NAME="Personal")
