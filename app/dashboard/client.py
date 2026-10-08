@@ -14,8 +14,15 @@ class CRMAPIError(RuntimeError):
 class CRMAPIClient:
     """Call only the internal operator API; never call Gmail or an LLM directly."""
 
-    def __init__(self, base_url: str, *, timeout_seconds: float = 5.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        access_token: str | None = None,
+        timeout_seconds: float = 5.0,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._access_token = access_token
         self._timeout_seconds = timeout_seconds
 
     def _request(
@@ -27,11 +34,17 @@ class CRMAPIClient:
         json: dict[str, Any] | None = None,
     ) -> Any:
         try:
+            headers = (
+                {"X-Operator-Token": self._access_token}
+                if self._access_token
+                else None
+            )
             response = httpx.request(
                 method,
                 f"{self._base_url}{path}",
                 params=params,
                 json=json,
+                headers=headers,
                 timeout=self._timeout_seconds,
             )
             response.raise_for_status()
