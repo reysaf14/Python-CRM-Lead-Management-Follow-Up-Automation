@@ -4,6 +4,7 @@ from collections.abc import Iterator
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.auth import require_operator
 from app.persistence.database import get_session_factory
 
 
@@ -21,3 +22,6 @@ def get_db_session() -> Iterator[Session]:
         yield session
     finally:
         session.close()
+
+
+__all__ = ["get_crm_session_factory", "get_db_session", "require_operator"]
