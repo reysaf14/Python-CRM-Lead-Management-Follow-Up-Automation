@@ -15,6 +15,8 @@ def build_engine(settings: Settings | None = None) -> Engine:
     """Build an engine without opening a database connection immediately."""
 
     resolved_settings = settings or get_settings()
+    if not resolved_settings.database_url:
+        raise ValueError("DATABASE_URL is required for database runtime")
     return create_engine(
         resolved_settings.database_url,
         pool_pre_ping=True,
