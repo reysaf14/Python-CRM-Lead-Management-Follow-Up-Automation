@@ -113,7 +113,7 @@ The `domain` layer must not import Gmail, LLM-provider, dashboard, or web-framew
 | Pytest | Selected for synthetic, reproducible unit, integration, and workflow verification. |
 | Docker Compose | Selected for local/private multi-process consistency. It does not imply production deployment or permit live credentials in files. |
 
-The environment contract is defined in [environment-schema.md](environment-schema.md). It provides one planned root `.env.example`, explicit live/mock transport selection, source precedence, required-value behavior, secret ownership, and isolation rules. Exact operational values for polling interval, LLM input limit, timeout, retry count, and follow-up scan interval are intentionally `UNKNOWN` pending Human approval; the implementation must validate them rather than silently defaulting them.
+The environment contract is defined in [environment-schema.md](environment-schema.md). It provides one canonical root `.env.example`, explicit live/mock transport selection, source precedence, required-value behavior, secret ownership, and isolation rules. Exact operational values for polling interval, LLM input limit, timeout, retry count, and follow-up scan interval are intentionally `UNKNOWN` pending Human approval; the implementation must validate them rather than silently defaulting them.
 
 ### Authentication and Authorization
 
