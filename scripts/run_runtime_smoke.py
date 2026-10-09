@@ -26,6 +26,8 @@ def _request(url: str, *, token: str | None = None) -> tuple[int, str]:
             return response.status, response.read(512).decode("utf-8", errors="replace")
     except urllib.error.HTTPError as error:
         return error.code, error.read(512).decode("utf-8", errors="replace")
+    except (urllib.error.URLError, ConnectionError, TimeoutError):
+        return 0, ""
 
 
 def _wait_for(url: str, *, expected_status: int, token: str | None = None) -> tuple[int, str]:
@@ -52,6 +54,16 @@ def _compose_base(project_root: Path, project_name: str, env_path: Path, overrid
         "--file",
         str(override_path),
     ]
+
+
+def _run_migration(compose: list[str]) -> bool:
+    for attempt in range(5):
+        result = _run([*compose, "run", "--rm", "api", "alembic", "upgrade", "head"], check=False)
+        if result.returncode == 0:
+            return True
+        if attempt < 4:
+            time.sleep(2)
+    return False
 
 
 def _safe_logs(compose: list[str], secret_values: tuple[str, ...]) -> dict[str, Any]:
@@ -113,14 +125,16 @@ def run_smoke(
             + "  api:\n"
             + f"    image: {image}\n"
             + "    build: null\n"
-            + '    ports: ["127.0.0.1:18000:8000"]\n'
+            + "    ports: !override\n"
+            + '      - "127.0.0.1:18000:8000"\n'
             + "  worker:\n"
             + f"    image: {image}\n"
             + "    build: null\n"
             + "  dashboard:\n"
             + f"    image: {image}\n"
             + "    build: null\n"
-            + '    ports: ["127.0.0.1:18501:8501"]\n',
+            + "    ports: !override\n"
+            + '      - "127.0.0.1:18501:8501"\n',
             encoding="utf-8",
         )
         compose = _compose_base(project_root, project_name, env_path, override_path)
@@ -131,11 +145,11 @@ def run_smoke(
             "stack_cleaned_up": False,
         }
         try:
-            if _run([*compose, "up", "-d", "postgres"]).returncode != 0:
+            if _run([*compose, "up", "-d", "postgres"], check=False).returncode != 0:
                 raise RuntimeError("postgres startup failed")
-            if _run([*compose, "run", "--rm", "api", "alembic", "upgrade", "head"]).returncode != 0:
+            if not _run_migration(compose):
                 raise RuntimeError("migration failed")
-            if _run([*compose, "up", "-d", "api", "worker", "dashboard"]).returncode != 0:
+            if _run([*compose, "up", "-d", "api", "worker", "dashboard"], check=False).returncode != 0:
                 raise RuntimeError("application startup failed")
 
             health_status, _ = _wait_for("http://127.0.0.1:18000/health", expected_status=200)
@@ -180,6 +194,12 @@ def run_smoke(
                 )
             ):
                 result["status"] = "FAIL"
+        except RuntimeError as error:
+            result["status"] = "FAIL"
+            result["failure_category"] = str(error)
+        except subprocess.CalledProcessError:
+            result["status"] = "FAIL"
+            result["failure_category"] = "compose_command_failed"
         finally:
             _run([*compose, "down", "--volumes", "--remove-orphans"], check=False)
             result["stack_cleaned_up"] = True
