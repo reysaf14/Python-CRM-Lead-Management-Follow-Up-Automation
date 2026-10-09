@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import base64
 import html
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime, parseaddr
 from typing import Any, Protocol, Sequence
+from urllib.parse import quote
 
 from app.core.config import Settings
 from app.core.config import APPROVED_GMAIL_LABEL_NAME
@@ -18,6 +20,12 @@ GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
 MAX_MIME_BODY_BYTES = 1_000_000
 MAX_PROVIDER_MESSAGE_BYTES = MAX_MIME_BODY_BYTES
+# Gmail's sizeEstimate is advisory. The full REST response is read through a
+# bounded streaming session so provider-controlled bytes cannot be materialized
+# without a hard upper bound before MIME parsing.
+MAX_PROVIDER_RESPONSE_BYTES = MAX_PROVIDER_MESSAGE_BYTES + 256_000
+GMAIL_HTTP_TIMEOUT_SECONDS = 15
+GMAIL_MESSAGES_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages/{}"
 MAX_MIME_PARTS = 100
 MAX_MIME_DEPTH = 10
 
@@ -66,6 +74,7 @@ class GmailPage:
 
 class GmailAdapter(Protocol):
     """Minimal boundary required by the polling service."""
+
 
     def list_messages(self, *, label_name: str, cursor: str | None) -> GmailPage:
         """Return one page restricted to the requested label."""
@@ -218,12 +227,38 @@ def normalize_gmail_message(
     )
 
 
+def _read_limited_json_response(response: Any) -> dict[str, Any]:
+    """Read a provider response with a hard byte ceiling and no raw error body."""
+
+    if int(getattr(response, "status_code", 200)) >= 400:
+        raise GmailAdapterError("message_fetch_failed")
+
+    chunks: list[bytes] = []
+    total_bytes = 0
+    for chunk in response.iter_content(chunk_size=64 * 1024):
+        if not chunk:
+            continue
+        total_bytes += len(chunk)
+        if total_bytes > MAX_PROVIDER_RESPONSE_BYTES:
+            raise GmailAdapterError("provider_response_size_exceeded")
+        chunks.append(bytes(chunk))
+
+    try:
+        document = json.loads(b"".join(chunks).decode("utf-8"))
+    except (UnicodeDecodeError, TypeError, ValueError):
+        raise GmailAdapterError("invalid_provider_response") from None
+    if not isinstance(document, dict):
+        raise GmailAdapterError("invalid_provider_response")
+    return document
+
+
 class MockGmailAdapter:
     """Deterministic page adapter for unit and isolated integration tests."""
 
     def __init__(self, pages: Sequence[GmailPage]) -> None:
         self._pages = tuple(pages)
         self.calls: list[tuple[str, str | None]] = []
+
 
     def list_messages(self, *, label_name: str, cursor: str | None) -> GmailPage:
         self.calls.append((label_name, cursor))
@@ -238,13 +273,18 @@ class LiveGmailAdapter:
 
     def __init__(self, settings: Settings, service: Any | None = None) -> None:
         self._settings = settings
-        self._service = service or self._build_service(settings)
+        self._http: Any | None = None
+        if service is None:
+            self._service, self._http = self._build_service(settings)
+        else:
+            self._service = service
         self._label_ids: dict[str, str] = {}
         self._identity_verified = False
 
     @staticmethod
-    def _build_service(settings: Settings) -> Any:
+    def _build_service(settings: Settings) -> tuple[Any, Any]:
         try:
+            from google.auth.transport.requests import AuthorizedSession
             from google.oauth2.credentials import Credentials
             from googleapiclient.discovery import build
 
@@ -256,7 +296,8 @@ class LiveGmailAdapter:
                 client_secret=settings.gmail_oauth_client_secret.get_secret_value(),
                 scopes=[GMAIL_READONLY_SCOPE],
             )
-            return build("gmail", "v1", credentials=credentials, cache_discovery=False)
+            service = build("gmail", "v1", credentials=credentials, cache_discovery=False)
+            return service, AuthorizedSession(credentials)
         except GmailAdapterError:
             raise
         except Exception:
@@ -288,6 +329,38 @@ class LiveGmailAdapter:
         if not authenticated_address or authenticated_address != expected_address:
             raise GmailAdapterError("mailbox_identity_mismatch")
         self._identity_verified = True
+
+    def _fetch_full_message(self, message_id: str) -> dict[str, Any]:
+        if self._http is None:
+            return (
+                self._service.users()
+                .messages()
+                .get(
+                    userId="me",
+                    id=message_id,
+                    format="full",
+                    fields="id,threadId,internalDate,payload",
+                )
+                .execute()
+            )
+
+        response = None
+        try:
+            response = self._http.get(
+                GMAIL_MESSAGES_ENDPOINT.format(quote(message_id, safe="")),
+                params={"format": "full", "fields": "id,threadId,internalDate,payload"},
+                timeout=GMAIL_HTTP_TIMEOUT_SECONDS,
+                stream=True,
+                allow_redirects=False,
+            )
+            return _read_limited_json_response(response)
+        except GmailAdapterError:
+            raise
+        except Exception:
+            raise GmailAdapterError("message_fetch_failed") from None
+        finally:
+            if response is not None:
+                response.close()
 
     def list_messages(self, *, label_name: str, cursor: str | None) -> GmailPage:
         if label_name != APPROVED_GMAIL_LABEL_NAME:
@@ -334,17 +407,7 @@ class LiveGmailAdapter:
                     raise GmailAdapterError("invalid_provider_size_estimate")
                 if size_estimate > MAX_PROVIDER_MESSAGE_BYTES:
                     raise GmailAdapterError("provider_message_size_exceeded")
-                payload = (
-                    self._service.users()
-                    .messages()
-                    .get(
-                        userId="me",
-                        id=message_id,
-                        format="full",
-                        fields="id,threadId,internalDate,payload",
-                    )
-                    .execute()
-                )
+                payload = self._fetch_full_message(message_id)
                 messages.append(normalize_gmail_message(payload, label_names=[label_name]))
             return GmailPage(
                 messages=tuple(messages),

@@ -14,7 +14,11 @@ venv/
 *.log
 **/credentials/
 **/service-account*.json
+**/service_account*.json
 **/client-secret*.json
+**/client_secret*.json
+**/oauth*.json
+**/*credential*.json
 *.pem
 *.key
 *.crt

@@ -66,3 +66,26 @@ def test_test_target_includes_only_its_additional_dependency_lock(tmp_path: Path
 
     assert "requirements.lock" in paths
     assert "requirements.dev.lock" in paths
+
+
+def test_credential_json_patterns_are_ignored(tmp_path: Path) -> None:
+    rules_text = chr(10).join(
+        [
+            "**/service-account*.json",
+            "**/service_account*.json",
+            "**/client-secret*.json",
+            "**/client_secret*.json",
+            "**/oauth*.json",
+            "**/*credential*.json",
+        ]
+    ) + chr(10)
+    (tmp_path / ".dockerignore").write_text(rules_text, encoding="utf-8")
+
+    rules = MANIFEST_MODULE._dockerignore_rules(tmp_path)
+
+    assert MANIFEST_MODULE._is_docker_ignored(
+        Path("client_secret_installed.apps.googleusercontent.com.json"), rules
+    )
+    assert MANIFEST_MODULE._is_docker_ignored(Path("nested/service_account.json"), rules)
+    assert MANIFEST_MODULE._is_docker_ignored(Path("oauth-client.json"), rules)
+    assert MANIFEST_MODULE._is_docker_ignored(Path("credentials.json"), rules)

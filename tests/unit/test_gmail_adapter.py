@@ -11,6 +11,8 @@ from app.adapters.gmail.client import (
     MAX_MIME_BODY_BYTES,
     MAX_MIME_DEPTH,
     MAX_PROVIDER_MESSAGE_BYTES,
+    MAX_PROVIDER_RESPONSE_BYTES,
+    _read_limited_json_response,
     extract_text_body,
     normalize_gmail_message,
 )
@@ -264,3 +266,25 @@ def test_live_gmail_rejects_missing_provider_size_before_full_message_fetch() ->
         adapter.list_messages(label_name="Sales Leads", cursor=None)
 
     assert service.users().messages().get_formats == ["metadata"]
+
+class _FakeStreamingResponse:
+    def __init__(self, chunks: list[bytes], status_code: int = 200) -> None:
+        self.chunks = chunks
+        self.status_code = status_code
+
+    def iter_content(self, *, chunk_size: int) -> list[bytes]:
+        assert chunk_size == 64 * 1024
+        return self.chunks
+
+
+def test_provider_response_hard_limit_rejects_before_json_materialization() -> None:
+    response = _FakeStreamingResponse([b"x" * (MAX_PROVIDER_RESPONSE_BYTES + 1)])
+
+    with pytest.raises(GmailAdapterError, match="provider_response_size_exceeded"):
+        _read_limited_json_response(response)
+
+
+def test_provider_response_stream_is_parsed() -> None:
+    response = _FakeStreamingResponse([b'{"id":"message-001"}'])
+
+    assert _read_limited_json_response(response) == {"id": "message-001"}
