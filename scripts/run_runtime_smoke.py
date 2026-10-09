@@ -56,6 +56,33 @@ def _compose_base(project_root: Path, project_name: str, env_path: Path, overrid
     ]
 
 
+def _image_identity(image: str) -> dict[str, Any]:
+    result = _run(
+        ["docker", "image", "inspect", image, "--format", "{{json .}}"],
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return {
+            "command_succeeded": False,
+            "image_id": None,
+            "image_digest": None,
+        }
+    try:
+        inspected = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {
+            "command_succeeded": False,
+            "image_id": None,
+            "image_digest": None,
+        }
+    repo_digests = inspected.get("RepoDigests") or []
+    return {
+        "command_succeeded": True,
+        "image_id": inspected.get("Id"),
+        "image_digest": repo_digests[0] if repo_digests else inspected.get("Id"),
+    }
+
+
 def _run_migration(compose: list[str]) -> bool:
     for attempt in range(5):
         result = _run([*compose, "run", "--rm", "api", "alembic", "upgrade", "head"], check=False)
@@ -76,12 +103,30 @@ def _safe_logs(compose: list[str], secret_values: tuple[str, ...]) -> dict[str, 
         "LLM_API_KEY",
         "Authorization: Bearer",
     )
+    command_succeeded = result.returncode == 0
     return {
-        "command_succeeded": result.returncode == 0,
+        "command_succeeded": command_succeeded,
+        "failure_category": None if command_succeeded else "log_collection_failed",
         "line_count": len(raw.splitlines()),
         "secret_markers_found": any(marker and marker in raw for marker in markers),
         "raw_logs_persisted": False,
     }
+
+
+def _runtime_checks_failed(runtime: dict[str, Any], logs: dict[str, Any]) -> bool:
+    return any(
+        (
+            runtime["api_health_status"] != 200,
+            runtime["api_ready_status"] != 200,
+            runtime["api_unauthenticated_status"] != 401,
+            runtime["api_authenticated_status"] != 200,
+            runtime["dashboard_http_status"] != 200,
+            not runtime["dashboard_streamlit_marker"],
+            runtime["worker_state"] != "running",
+            not logs["command_succeeded"],
+            logs["secret_markers_found"],
+        )
+    )
 
 
 def run_smoke(
@@ -143,8 +188,16 @@ def run_smoke(
             "evidence_type": "implementer-generated-disposable-runtime-smoke",
             "external_attestation": False,
             "stack_cleaned_up": False,
+            "image": image,
+            "manifest_sha256": manifest_sha256,
+            "candidate": candidate,
         }
         try:
+            identity = _image_identity(image)
+            result["resolved_image_id"] = identity["image_id"]
+            result["resolved_image_digest"] = identity["image_digest"]
+            if not identity["command_succeeded"]:
+                raise RuntimeError("image_inspection_failed")
             if _run([*compose, "up", "-d", "postgres"], check=False).returncode != 0:
                 raise RuntimeError("postgres startup failed")
             if not _run_migration(compose):
@@ -181,18 +234,7 @@ def run_smoke(
                 "worker_state": worker_status,
             }
             result["logs"] = _safe_logs(compose, (token, password))
-            if any(
-                (
-                    health_status != 200,
-                    ready_status != 200,
-                    unauth_status != 401,
-                    auth_status != 200,
-                    dashboard_status != 200,
-                    "streamlit" not in dashboard_body.lower(),
-                    worker_status != "running",
-                    result["logs"]["secret_markers_found"],
-                )
-            ):
+            if _runtime_checks_failed(result["runtime"], result["logs"]):
                 result["status"] = "FAIL"
         except RuntimeError as error:
             result["status"] = "FAIL"

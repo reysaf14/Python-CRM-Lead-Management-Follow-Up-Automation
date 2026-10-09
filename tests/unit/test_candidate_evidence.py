@@ -36,3 +36,20 @@ def test_credential_filename_detection_is_fail_closed() -> None:
     assert any(pattern.search("client_secret.json") for pattern in module._CREDENTIAL_FILE_PATTERNS)
     assert any(pattern.search("oauth-client.json") for pattern in module._CREDENTIAL_FILE_PATTERNS)
     assert ".p12" in module._CREDENTIAL_SUFFIXES
+
+def test_runtime_smoke_fails_when_log_collection_fails() -> None:
+    module = _load_script("runtime_smoke", "run_runtime_smoke.py")
+    runtime = {
+        "api_health_status": 200,
+        "api_ready_status": 200,
+        "api_unauthenticated_status": 401,
+        "api_authenticated_status": 200,
+        "dashboard_http_status": 200,
+        "dashboard_streamlit_marker": True,
+        "worker_state": "running",
+    }
+    logs = {
+        "command_succeeded": False,
+        "secret_markers_found": False,
+    }
+    assert module._runtime_checks_failed(runtime, logs)
