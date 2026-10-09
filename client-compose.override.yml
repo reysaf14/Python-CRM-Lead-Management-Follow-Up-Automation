@@ -1,0 +1,16 @@
+services:
+  api:
+    image: python-crm-security-fix-v13@sha256:059247c8d3c2a0374e6cf1c30915c28bc9517e48e46a66c901cbeaa4f89b5825
+    build: !reset null
+    ports: !override
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    image: python-crm-security-fix-v13@sha256:059247c8d3c2a0374e6cf1c30915c28bc9517e48e46a66c901cbeaa4f89b5825
+    build: !reset null
+
+  dashboard:
+    image: python-crm-security-fix-v13@sha256:059247c8d3c2a0374e6cf1c30915c28bc9517e48e46a66c901cbeaa4f89b5825
+    build: !reset null
+    ports: !override
+      - "127.0.0.1:8501:8501"
